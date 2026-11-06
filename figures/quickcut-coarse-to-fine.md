@@ -1,0 +1,30 @@
+# 由粗到细的目标工作流
+
+目标架构，尚未全部实现。先以用户故事约束粗筛，再以实际素材反向修订结构；主素材和外部空镜共同进入故事板，逐句配音参与时间线对齐。虚线表示受控反馈。
+
+```mermaid
+%%{init: {"theme": "base", "htmlLabels": false, "themeVariables": {"fontFamily": "PingFang SC, Microsoft YaHei, sans-serif", "fontSize": "16px", "primaryColor": "#eef4fb", "primaryBorderColor": "#64748b", "lineColor": "#475569"}, "flowchart": {"htmlLabels": false, "wrappingWidth": 300, "curve": "linear", "nodeSpacing": 28, "rankSpacing": 38}}}%%
+flowchart TB
+    brief["用户 Brief<br/>故事、类型、时长、情绪"] --> outline["C 初始故事结构<br/>叙事目的与镜头需求"]
+    footage["用户素材<br/>多个短片或长视频"] --> ingest["A 素材索引<br/>代理、粗分段、关键帧、ASR"]
+    library["外部空镜库<br/>风景、环境、细节"] --> retrieve["B 需求驱动粗检索<br/>CLIP / 文本、去重、质量筛选"]
+    ingest --> retrieve
+    outline --> retrieve
+    retrieve --> align["C 故事与素材二次对齐<br/>段落、证据、空镜职责、旁白预算"]
+    outline --> align
+    align --> storyboard["C 可执行故事板<br/>VLM 选镜头与排序"]
+    align -. "素材缺口：有限次数再检索" .-> retrieve
+    storyboard --> fine["D 从镜头到边界精剪<br/>源入出点、动作完整性、节奏"]
+    storyboard --> speech["E 逐句本地 TTS<br/>独立音频与实测时长"]
+    fine --> timeline["D 统一多轨时间线<br/>视听对齐与局部重算"]
+    speech --> timeline
+    timeline --> export["F 渲染与剪映适配<br/>素材打包、独立轨道、预览"]
+    export --> verify["技术检查与内容复核<br/>实际导入、编辑、保存、再导出"]
+    verify --> delivery["可精修草稿工程 + 素材包<br/>预览视频 + 验证报告"]
+    classDef input fill:#ecfdf5,stroke:#56826c,color:#173d2a;
+    classDef planning fill:#f4effc,stroke:#8775a7,color:#392956;
+    classDef output fill:#fff5e9,stroke:#ac8252,color:#513819;
+    class brief,footage,library input;
+    class outline,align,storyboard,timeline planning;
+    class export,verify,delivery output;
+```

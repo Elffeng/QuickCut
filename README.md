@@ -1,5 +1,17 @@
 # QuickCut MVP
 
+## Team implementation guide / 团队实施指南
+
+Start with the [Chinese project guide](docs/PROJECT_GUIDE.zh-CN.md) for the shared product goal,
+coarse-to-fine multi-source workflow, local model choices, and the six-person implementation plan.
+It separates the current single-source MVP from the proposed multi-source and Jianying draft workflow.
+
+- [现有 MVP 能力与复用地图](docs/team/mvp-baseline.md)
+- [A–F 六人任务、交付与验收](docs/team/workstreams.md)
+- [模块协议与修订规则](docs/team/contracts.md)
+- [可复用的协议黄金样例与校验器](examples/team_contracts/README.md)
+- [可编辑流程图及 PNG](figures/README.md)
+
 QuickCut is the local MVP for the EditForge proposal: a text prompt selects relevant moments from a source video, emits a provenance-aware 5–60 second timeline, and renders an edited clip. The index is built once and edit operations reuse it. Basic Vlog defaults to 30 seconds so the local planner has room to explain a complete hook→journey→close event; requests up to one minute are accepted.
 
 The first runnable stack is deliberately small and production-shaped:

@@ -1,5 +1,10 @@
 # QuickCut MVP architecture
 
+This document describes the existing MVP. The proposed multi-source, coarse-to-fine architecture,
+external B-roll planning, and editable Jianying delivery are specified in the
+[team project guide](docs/PROJECT_GUIDE.zh-CN.md). Use the [baseline audit](docs/team/mvp-baseline.md)
+to distinguish implemented behavior from the next-phase design.
+
 QuickCut is the local MVP for the EditForge proposal. It accepts one source video and one text prompt, caches a source index, returns a provenance-aware 5-60 second timeline, and renders an MP4. Basic Vlog defaults to a 30-second story and supports requests up to one minute so the hook, journey, and close can explain a complete event. Timeline edits reuse the cached index.
 
 ## Runtime
