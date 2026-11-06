@@ -11,6 +11,7 @@ It separates the current single-source MVP from the proposed multi-source and Ji
 - [模块协议与修订规则](docs/team/contracts.md)
 - [可复用的协议黄金样例与校验器](examples/team_contracts/README.md)
 - [可编辑流程图及 PNG](figures/README.md)
+- [完整 PDF 手册（含流程图、六人任务书与接口契约）](output/pdf/QuickCut_项目指导手册.pdf)
 
 QuickCut is the local MVP for the EditForge proposal: a text prompt selects relevant moments from a source video, emits a provenance-aware 5–60 second timeline, and renders an edited clip. The index is built once and edit operations reuse it. Basic Vlog defaults to 30 seconds so the local planner has room to explain a complete hook→journey→close event; requests up to one minute are accepted.
 
