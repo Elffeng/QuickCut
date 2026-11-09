@@ -8,20 +8,20 @@
   "owner": "C",
   "inputs": [],
   "status": "ready_for_edit",
-  "theme": "从城市走进林间",
+  "theme": "From the city into the forest",
   "narration_language": "zh-CN",
   "beats": [
     {
       "beat_id": "beat-open",
       "order": 0,
-      "purpose": "交代出发",
+      "purpose": "Establish the departure",
       "duration_budget_us": 6000000,
       "shots": [
         {
           "segment_id": "seg-packing",
           "candidate_id": "candidate-seg-packing",
           "role": "primary",
-          "evidence": "用户素材中的出发动作",
+          "evidence": "Departure action in user footage",
           "suggested_duration_us": 6000000
         }
       ],
@@ -32,21 +32,21 @@
     {
       "beat_id": "beat-middle",
       "order": 1,
-      "purpose": "从环境过渡到人物步行",
+      "purpose": "Transition from the environment to the person walking",
       "duration_budget_us": 9000000,
       "shots": [
         {
           "segment_id": "seg-forest",
           "candidate_id": "candidate-seg-forest",
           "role": "broll",
-          "evidence": "外部风景用于氛围，不声明其为用户拍摄地点",
+          "evidence": "External scenery establishes atmosphere; it is not asserted to be the user filming location",
           "suggested_duration_us": 3000000
         },
         {
           "segment_id": "seg-walk",
           "candidate_id": "candidate-seg-walk",
           "role": "primary",
-          "evidence": "用户素材中的林间步行",
+          "evidence": "Forest walking in user footage",
           "suggested_duration_us": 6000000
         }
       ],
@@ -57,14 +57,14 @@
     {
       "beat_id": "beat-close",
       "order": 2,
-      "purpose": "坐下休息并收束",
+      "purpose": "Sit down to rest and close the story",
       "duration_budget_us": 3000000,
       "shots": [
         {
           "segment_id": "seg-rest",
           "candidate_id": "candidate-seg-rest",
           "role": "primary",
-          "evidence": "用户素材中的休息动作",
+          "evidence": "Resting action in user footage",
           "suggested_duration_us": 3000000
         }
       ],
@@ -79,7 +79,7 @@
       "beat_id": "beat-open",
       "text": "出发了。",
       "duration_budget_us": 3000000,
-      "voice_style": "自然中文男声",
+      "voice_style": "Natural Mandarin male voice",
       "evidence_segment_ids": [
         "seg-packing"
       ]
@@ -89,7 +89,7 @@
       "beat_id": "beat-middle",
       "text": "走进林间，脚步慢了下来。",
       "duration_budget_us": 7000000,
-      "voice_style": "自然中文男声",
+      "voice_style": "Natural Mandarin male voice",
       "evidence_segment_ids": [
         "seg-walk"
       ]
@@ -99,7 +99,7 @@
       "beat_id": "beat-close",
       "text": "我们沿着林间的小路慢慢向前走，停下来听风吹过树叶的声音，然后坐在路边休息，享受这一段安静的时光。",
       "duration_budget_us": 1000000,
-      "voice_style": "自然中文男声",
+      "voice_style": "Natural Mandarin male voice",
       "evidence_segment_ids": [
         "seg-rest"
       ]
