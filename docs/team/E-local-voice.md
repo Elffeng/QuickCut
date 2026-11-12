@@ -4,20 +4,53 @@
 
 E converts C's approved sentences into independent WAV files, measured durations, local subtitles, and timing feedback. D consumes VoicePackage and owns global timing. F resolves generated assets against D's frozen timeline and mixes separate tracks. E does not change the story, shots, source audio, or global timeline.
 
-This delivery covers all P0 requirements in E's task description. Neural TTS, voice cloning, multiple characters, and emotion control remain P1 enhancements. The existing `voice.py` stays compatible. The new entry point explicitly returns VoicePackage instead of calling `synthesize_timed_narration`, which mutates the legacy Timeline.
+This delivery covers all P0 requirements in E's task description. IndexTTS2 adds optional neural synthesis conditioned on a local speaker reference. The existing `voice.py` stays compatible. The new entry point explicitly returns VoicePackage instead of calling `synthesize_timed_narration`, which mutates the legacy Timeline.
 
 ## Protocol and entry points
 
 - Input: StoryPlan, `schema_version: "0.1.0"`. The CLI can also extract StoryPlan from the golden bundle.
 - Output: VoicePackage, `schema_version: "0.1.0"`, `owner: "E"`, `timing_authority: "D"`.
 - Python API: `quickcut.voice_package.build_voice_package(story, project_root, ...)` returns a new dictionary without modifying its input.
-- CLI: `python -m quickcut.voice_package`. Requires Python 3.10+. Real synthesis additionally requires FFmpeg and local `say` or espeak/espeak-ng. `--capabilities` lists installed voices, languages, and supported parameters.
+- CLI: `python -m quickcut.voice_package`. Requires Python 3.10+. Real synthesis requires FFmpeg and either a system voice engine or a separately installed IndexTTS2 runtime. `--capabilities` lists installed voices, languages, and supported parameters.
 - Verified on macOS: Reed, Mandarin Chinese (mainland China), rate 145, 48 kHz mono PCM16. The espeak adapter is implemented but has not undergone real platform listening acceptance.
 - Synthesis runs locally. Optional Whisper verification requires an initial model download and can run offline afterward.
 
 All media URIs are relative to `--root`, use `/`, and contain no personal absolute paths. Asset IDs hash the project, cue, and synthesis configuration and use the `generated-voice-` prefix. D/F must merge these with A's manifest and check ID uniqueness.
 
 Documentation and descriptive metadata are in English. Mandarin test scripts, matching subtitles, raw ASR hypotheses, and exact system voice identifiers retain their original language so the recorded audio and evidence remain consistent.
+
+## IndexTTS2 narration
+
+Install the [official IndexTTS2 runtime](https://github.com/index-tts/index-tts/blob/main/docs/cli_v2_usage.md) in an isolated Python 3.11 environment. This integration was verified with upstream commit `d9e41aac89fd00b3d71497fddb287b7f24613712` and the [IndexTeam/IndexTTS-2 weights](https://huggingface.co/IndexTeam/IndexTTS-2/tree/740dcaf) at revision `740dcaf`. Download the pinned weights and prepare the auxiliary models under `hf_cache` with the upstream helper. The model and the speaker WAV stay in local ignored directories.
+
+From the QuickCut repository root, the following layout matches the checked-in configuration:
+
+```bash
+git clone https://github.com/index-tts/index-tts.git outputs/indextts2-runtime/upstream
+git -C outputs/indextts2-runtime/upstream checkout d9e41aac89fd00b3d71497fddb287b7f24613712
+uv sync --locked --python 3.11 --project outputs/indextts2-runtime/upstream
+outputs/indextts2-runtime/upstream/.venv/bin/hf download IndexTeam/IndexTTS-2 \
+  --revision 740dcaf --local-dir outputs/indextts2-runtime/checkpoints \
+  --include '*.pth' '*.pt' '*.yaml' '*.model'
+outputs/indextts2-runtime/upstream/.venv/bin/python -c \
+  'from indextts.utils.model_download import ensure_models_available; ensure_models_available("outputs/indextts2-runtime/checkpoints")'
+mkdir -p inputs
+cp /path/to/your/speaker.wav inputs/indextts2-reference.wav
+```
+
+Use the IndexTTS2 environment to launch QuickCut. The configuration uses `mps` on Apple Silicon. Set `device` to `cpu` or `cuda:0` for a matching runtime on another machine. Paths in the configuration are relative to the working directory.
+
+```bash
+HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTORCH_ENABLE_MPS_FALLBACK=1 \
+  outputs/indextts2-runtime/upstream/.venv/bin/python -m quickcut.voice_package \
+  --story examples/voice_package/story.json \
+  --config examples/voice_package/indextts2.config.json \
+  --root outputs/indextts2-voice --mode measure
+```
+
+QuickCut loads the model on the first uncached cue, reuses it for the remaining cues, and converts its WAVs to 48 kHz mono PCM16 before the existing timing and subtitle pipeline. Each cue's synthesis profile records the checkpoint revision, runtime version, device, seed, and SHA-256 of the speaker reference. Update `model_revision` when changing weights. Cue overrides may set `reference_audio` and `seed`. The model uses the reference audio to condition its delivery. Keep actual reference recordings and downloaded checkpoints local.
+
+Verified on Apple Silicon MPS with the same reference and seed as the listening test. Final WAVs measured approximately 0.90s, 2.73s, and 10.00s, including configured sentence-end padding. The third cue exceeds its one-second budget and returns `needs_retime` with complete audio and subtitles.
 
 ## Reproduce from the repository root
 

@@ -3,7 +3,8 @@
 See [E-local-voice.md](../../docs/team/E-local-voice.md) for usage and handoff details.
 
 - `story.json`: three handwritten Mandarin sentences; the third deliberately has a one-second budget.
-- `config.json`: voice and adaptation settings used for real synthesis.
+- `config.json`: system voice settings used for the checked-in samples.
+- `indextts2.config.json`: local IndexTTS2 settings for a speaker reference WAV. See the handoff guide for setup and the run command.
 - `real/voice_package.json`: initial real Mandarin measurements; `real/audio/narration/` contains independent playable WAVs.
 - `real/voice_package-r2.json` and `story-r2.json`: only the first sentence changes; other WAVs are reused.
 - `fit-request.json` and `real/voice_package-fit.json`: D's exact request references and bounded fitting that preserves the final word.

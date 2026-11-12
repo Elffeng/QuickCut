@@ -187,3 +187,49 @@ def test_cli_preserves_existing_output(story, tmp_path):
     second = subprocess.run(cmd,capture_output=True,text=True)
     assert 'OUTPUT_EXISTS' in second.stderr
     assert output.read_bytes() == content
+
+
+def test_indextts2_uses_reference_in_cache_identity(story, tmp_path, monkeypatch):
+    import hashlib
+    import wave
+
+    from quickcut.indextts2 import IndexTTS2Backend
+
+    def init(backend, config):
+        backend.runtime_version = "2.0.0"
+        backend.model_revision = config["model_revision"]
+        backend.device = "mps"
+
+    calls = []
+
+    def synthesize(backend, text, output, reference, seed):
+        calls.append((text, reference, seed))
+        with wave.open(str(output), "wb") as wav:
+            wav.setparams((1, 2, 22050, 0, "NONE", "not compressed"))
+            wav.writeframes(array.array("h", [1500] * 22050).tobytes())
+
+    monkeypatch.setattr(IndexTTS2Backend, "__init__", init)
+    monkeypatch.setattr(IndexTTS2Backend, "synthesize", synthesize)
+    speaker = tmp_path / "speaker.wav"
+    speaker.write_bytes(b"reference version one")
+    config = {
+        "engine": "indextts2", "model_revision": "test-checkpoint",
+        "reference_audio": str(speaker), "seed": 42,
+    }
+    root = tmp_path / "output"
+    first = v.build_voice_package(story, root, config=config)
+    assert [c["fit_status"] for c in first["cues"]] == ["fits", "fits", "needs_retime"]
+    assert first["synthesis_profile"]["reference_sha256"] == hashlib.sha256(speaker.read_bytes()).hexdigest()
+    assert str(speaker) not in json.dumps(first)
+    assert len(calls) == 3
+    assert all(call[1:] == (speaker, 42) for call in calls)
+    assert all(a["audio"]["sample_rate"] == 48000 for a in first["assets"])
+
+    second = v.build_voice_package(story, root, config=config, previous=first, revision=2)
+    assert all(c["cache_hit"] for c in second["cues"])
+    assert len(calls) == 3
+
+    speaker.write_bytes(b"reference version two")
+    third = v.build_voice_package(story, root, config=config, previous=second, revision=3)
+    assert third["invalidated_cue_ids"] == ["cue-01", "cue-02", "cue-03"]
+    assert len(calls) == 6

@@ -112,8 +112,12 @@ def synthesize(text, output, profile):
         else:
             run([profile["engine"], "-v", profile["voice"], "-s", str(profile["rate"]),
                  "-f", str(script), "-w", str(source)])
-        run(["ffmpeg", "-v", "error", "-i", str(source), "-ar", str(SAMPLE_RATE),
-             "-ac", "1", "-c:a", "pcm_s16le", "-y", str(output)])
+        normalize_wav(source, output)
+
+
+def normalize_wav(source, output):
+    run(["ffmpeg", "-v", "error", "-i", str(source), "-ar", str(SAMPLE_RATE),
+         "-ac", "1", "-c:a", "pcm_s16le", "-y", str(output)])
 
 
 def read_pcm(path):
@@ -234,7 +238,24 @@ def build_voice_package(story, root, *, config=None, mode="measure", request=Non
             raise VoiceError("STALE_INPUT_REVISION", "New VoicePackage revision must increase")
     root = Path(root).resolve()
     root.mkdir(parents=True, exist_ok=True)
-    profile = select_profile(config, story.get("narration_language", "zh-CN"), fixture)
+    language = story.get("narration_language", "zh-CN")
+    engine = config.get("engine", "auto")
+    if not fixture and engine not in ("auto", "indextts2"):
+        raise VoiceError("INVALID_INPUT", "Voice engine must be auto or indextts2")
+    index_backend = None
+    if not fixture and engine == "indextts2":
+        from .indextts2 import IndexTTS2Backend
+
+        try:
+            index_backend = IndexTTS2Backend(config)
+            _, profile = index_backend.cue_settings(config, language)
+            if any(set(overrides) - {"reference_audio", "seed"}
+                   for overrides in config.get("cue_overrides", {}).values()):
+                raise ValueError("IndexTTS2 cue overrides support only reference_audio and seed")
+        except (OSError, ValueError) as exc:
+            raise VoiceError("INVALID_INPUT", str(exc)) from exc
+    else:
+        profile = select_profile(config, language, fixture)
     inputs = [reference(story)] + ([request["timeline"]] if request else [])
     package = dict(schema_version=SCHEMA, kind="VoicePackage", document_id="voice-" + story["document_id"],
                    project_id=story["project_id"], revision=revision, fixtures_only=fixture or story.get("fixtures_only", False),
@@ -246,21 +267,30 @@ def build_voice_package(story, root, *, config=None, mode="measure", request=Non
     for cue in story.get("narration_cues", []):
         cid = cue["cue_id"]
         budget = ranges[cid]["end"] - ranges[cid]["begin"] if cid in ranges else cue["duration_budget_us"]
-        cue_profile = select_profile({**config, **config.get("cue_overrides", {}).get(cid, {})}, profile["language"], fixture)
-        key = fingerprint({"text": cue["text"], "profile": cue_profile, "trim_version": 1})
-        clean_uri = f"audio/cache/{key}.wav"
-        clean = safe_file(root, clean_uri)
-        clean.parent.mkdir(parents=True, exist_ok=True)
+        cue_config = {**config, **config.get("cue_overrides", {}).get(cid, {})}
         record = {k: cue[k] for k in ("cue_id", "beat_id", "text")}
-        record.update(duration_budget_us=budget, script_input=reference(story), synthesis_profile=cue_profile,
-                      cache_key=key, requested_timeline_range_us=ranges.get(cid))
+        record.update(duration_budget_us=budget, script_input=reference(story),
+                      requested_timeline_range_us=ranges.get(cid))
         try:
+            if index_backend is not None:
+                speaker_audio, cue_profile = index_backend.cue_settings(cue_config, language)
+            else:
+                cue_profile = select_profile(cue_config, language, fixture)
+            key = fingerprint({"text": cue["text"], "profile": cue_profile, "trim_version": 1})
+            clean = safe_file(root, f"audio/cache/{key}.wav")
+            clean.parent.mkdir(parents=True, exist_ok=True)
+            record.update(synthesis_profile=cue_profile, cache_key=key)
             cache_meta = clean.with_suffix(".json")
             hit = clean.exists() and cache_meta.exists() and json.loads(cache_meta.read_text()).get("content_hash") == digest(clean)
             if not hit:
                 with tempfile.TemporaryDirectory() as directory:
                     raw = Path(directory) / "raw.wav"
-                    synthesize(cue["text"], raw, cue_profile)
+                    if index_backend is not None:
+                        native = raw.with_name("native.wav")
+                        index_backend.synthesize(cue["text"], native, speaker_audio, cue_profile["seed"])
+                        normalize_wav(native, raw)
+                    else:
+                        synthesize(cue["text"], raw, cue_profile)
                     original = read_pcm(raw)
                     trimmed = trim_boundaries(original)
                     write_pcm(clean, trimmed)
@@ -307,7 +337,7 @@ def build_voice_package(story, root, *, config=None, mode="measure", request=Non
                           local_subtitles=[dict(range_us=dict(begin=0, end=speech_us), text=cue["text"])])
             if needs:
                 package["errors"].append(error("VOICE_NEEDS_RETIME", "Measured audio exceeds budget; D retime or C shorten text", story, [cid], "D"))
-        except (VoiceError, subprocess.SubprocessError, OSError, ValueError, wave.Error) as exc:
+        except (subprocess.SubprocessError, OSError, ValueError, wave.Error, ImportError, RuntimeError) as exc:
             code = exc.code if isinstance(exc, VoiceError) else "TTS_FAILED"
             record.update(fit_status="failed", needs_retime=False, error_code=code)
             package["errors"].append(error(code, str(exc), story, [cid]))
